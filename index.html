@@ -28,16 +28,15 @@ html, body {
 
 .container {
   text-align: center;
-  padding: 24px;
 }
 
 .emoji {
   font-size: 72px;
 }
 
-.title {
+.text {
   font-size: 28px;
-  margin: 12px 0;
+  margin-top: 12px;
 }
 
 .hint {
@@ -52,49 +51,39 @@ html, body {
 
 <div class="container">
   <div class="emoji">🤫</div>
-  <div class="title">Noise Mirror</div>
-  <div class="hint">Tap anywhere to arm</div>
+  <div class="text">Noise Mirror</div>
+  <div class="hint">tap to start</div>
 </div>
 
 <script>
-/*
- iOS SAFETY RULE:
- - Entire audio graph must be created synchronously
-   inside ONE user gesture.
- - No toggles, no stop, no async/await after graph creation.
-*/
+document.body.addEventListener(
+  'click',
+  async () => {
+    const audioContext = new AudioContext();
 
-let armed = false;
-
-document.body.addEventListener('click', () => {
-  if (armed) return;
-  armed = true;
-
-  const audioContext = new AudioContext();
-
-  navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false
-    }
-  }).then(mediaStream => {
+    const mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
 
     const source = audioContext.createMediaStreamSource(mediaStream);
     const delayNode = audioContext.createDelay(5);
     const gainNode = audioContext.createGain();
 
-    delayNode.delayTime.value = 2.0;   // critical delay
+    delayNode.delayTime.value = 2;
     gainNode.gain.value = 0.8;
 
     source.connect(delayNode);
     delayNode.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    document.querySelector('.hint').textContent = 'Active · delayed mirror on';
-  });
-
-}, { once: true });
+    document.querySelector('.hint').style.display = 'none';
+  },
+  { once: true }
+);
 </script>
 
 </body>
