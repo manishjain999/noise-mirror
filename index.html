@@ -40,81 +40,62 @@ html, body {
   margin: 12px 0;
 }
 
-.status {
+.hint {
   opacity: 0.7;
-  margin-bottom: 24px;
-}
-
-button {
-  font-size: 18px;
-  padding: 14px 28px;
-  border-radius: 999px;
-  border: none;
-  background: white;
-  color: black;
+  margin-top: 8px;
+  font-size: 14px;
 }
 </style>
 </head>
 
 <body>
+
 <div class="container">
   <div class="emoji">🤫</div>
   <div class="title">Noise Mirror</div>
-  <div class="status" id="status">Tap to arm</div>
-  <button id="btn">ARM</button>
+  <div class="hint">Tap anywhere to arm</div>
 </div>
 
 <script>
-let ctx, stream, running = false;
+/*
+ iOS SAFETY RULE:
+ - Entire audio graph must be created synchronously
+   inside ONE user gesture.
+ - No toggles, no stop, no async/await after graph creation.
+*/
 
-const status = document.getElementById('status');
-const btn = document.getElementById('btn');
+let armed = false;
 
-async function start() {
-  ctx = new AudioContext();
-  stream = await navigator.mediaDevices.getUserMedia({
+document.body.addEventListener('click', () => {
+  if (armed) return;
+  armed = true;
+
+  const audioContext = new AudioContext();
+
+  navigator.mediaDevices.getUserMedia({
     audio: {
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false
     }
+  }).then(mediaStream => {
+
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    const delayNode = audioContext.createDelay(5);
+    const gainNode = audioContext.createGain();
+
+    delayNode.delayTime.value = 2.0;   // critical delay
+    gainNode.gain.value = 0.8;
+
+    source.connect(delayNode);
+    delayNode.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    document.querySelector('.hint').textContent = 'Active · delayed mirror on';
   });
 
-  const src = ctx.createMediaStreamSource(stream);
-  const delay = ctx.createDelay(5);
-  const gain = ctx.createGain();
-
-  delay.delayTime.value = 2.0;
-  gain.gain.value = 0.8;
-
-  src.connect(delay);
-  delay.connect(gain);
-  gain.connect(ctx.destination);
-
-  running = true;
-  status.textContent = "Active · delayed mirror on";
-  btn.textContent = "STOP";
-}
-
-function stop() {
-  stream?.getTracks().forEach(t => t.stop());
-  ctx?.close();
-  running = false;
-  status.textContent = "Stopped";
-  btn.textContent = "ARM";
-}
-
-btn.onclick = async () => {
-  try {
-    running ? stop() : await start();
-  } catch {
-    status.textContent = "Mic permission denied";
-  }
-};
-
-window.addEventListener("keydown", e => {
-  if (e.key === "Escape" && running) stop();
-});
+}, { once: true });
 </script>
+
 </body>
 </html>
