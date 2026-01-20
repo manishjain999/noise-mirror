@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>Noise Mirror</title>
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Noise Mirror">
+
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<style>
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0f0f0f;
+  color: white;
+  font-family: system-ui, -apple-system;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  text-align: center;
+  padding: 24px;
+}
+
+.emoji {
+  font-size: 72px;
+}
+
+.title {
+  font-size: 28px;
+  margin: 12px 0;
+}
+
+.status {
+  opacity: 0.7;
+  margin-bottom: 24px;
+}
+
+button {
+  font-size: 18px;
+  padding: 14px 28px;
+  border-radius: 999px;
+  border: none;
+  background: white;
+  color: black;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="emoji">🤫</div>
+  <div class="title">Noise Mirror</div>
+  <div class="status" id="status">Tap to arm</div>
+  <button id="btn">ARM</button>
+</div>
+
+<script>
+let ctx, stream, running = false;
+
+const status = document.getElementById('status');
+const btn = document.getElementById('btn');
+
+async function start() {
+  ctx = new AudioContext();
+  stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    }
+  });
+
+  const src = ctx.createMediaStreamSource(stream);
+  const delay = ctx.createDelay(5);
+  const gain = ctx.createGain();
+
+  delay.delayTime.value = 2.0;
+  gain.gain.value = 0.8;
+
+  src.connect(delay);
+  delay.connect(gain);
+  gain.connect(ctx.destination);
+
+  running = true;
+  status.textContent = "Active · delayed mirror on";
+  btn.textContent = "STOP";
+}
+
+function stop() {
+  stream?.getTracks().forEach(t => t.stop());
+  ctx?.close();
+  running = false;
+  status.textContent = "Stopped";
+  btn.textContent = "ARM";
+}
+
+btn.onclick = async () => {
+  try {
+    running ? stop() : await start();
+  } catch {
+    status.textContent = "Mic permission denied";
+  }
+};
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && running) stop();
+});
+</script>
+</body>
+</html>
